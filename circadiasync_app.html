@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CircadiaSync - Sleep & Stress Ecosystem</title>
+    <style>
+        /* === THEME VARIABLES === */
+        :root {
+            --bg: #FFFFFF;
+            --surface: #F0F4F8;
+            --card-bg: #FFFFFF;
+            --primary: #1565C0;
+            --primary-light: #E3F2FD;
+            --text-main: #1A1A1A;
+            --text-sec: #666666;
+            --success: #4CAF50;
+            --success-light: #C8E6C9;
+            --warning: #FFC107;
+            --warning-light: #FFF9C4;
+            --danger: #F44336;
+            --danger-light: #FFCDD2;
+            --border: #E0E0E0;
+            --nav-bg: #FFFFFF;
+            --nav-active: #1565C0;
+            --nav-inactive: #9E9E9E;
+            --shadow: 0 4px 6px rgba(0,0,0,0.05);
+            --chart-bar: #64B5F6;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0D1117;
+            --surface: #161B22;
+            --card-bg: #1C2128;
+            --primary: #90CAF9;
+            --primary-light: rgba(144, 202, 249, 0.15);
+            --text-main: #E6EDF3;
+            --text-sec: #8B949E;
+            --success: #81C784;
+            --success-light: rgba(129, 199, 132, 0.2);
+            --warning: #FFD54F;
+            --warning-light: rgba(255, 213, 79, 0.2);
+            --danger: #E57373;
+            --danger-light: rgba(229, 115, 115, 0.2);
+            --border: #30363D;
+            --nav-bg: #161B22;
+            --nav-active: #90CAF9;
+            --nav-inactive: #6E7681;
+            --shadow: 0 4px 6px rgba(0,0,0,0.3);
+            --chart-bar: #1976D2;
+        }
+
+        /* === GLOBAL STYLES === */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+        body { background-color: #2c3e50; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        
+        #app-frame {
+            width: 100%;
+            max-width: 390px;
+            height: 100vh;
+            max-height: 844px; /* iPhone size constraint for desktop view */
+            background-color: var(--bg);
+            color: var(--text-main);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .screen { flex: 1; overflow-y: auto; display: none; padding-bottom: 80px; position: relative; }
+        .screen.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* === TYPOGRAPHY & UTILS === */
+        h1, h2, h3 { font-weight: 700; }
+        .text-sm { font-size: 0.85rem; }
+        .text-xs { font-size: 0.75rem; }
+        .text-sec { color: var(--text-sec); }
+        .text-primary { color: var(--primary); }
+        .flex { display: flex; }
+        .flex-col { display: flex; flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-4 { gap: 1rem; }
+        .p-4 { padding: 1rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .text-center { text-align: center; }
+        
+        /* === UI COMPONENTS === */
+        .card { background: var(--card-bg); border-radius: 12px; padding: 1rem; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 1rem; }
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+        .badge-success { background: var(--success-light); color: var(--success); }
+        .badge-warning { background: var(--warning-light); color: var(--warning); }
+        .badge-danger { background: var(--danger-light); color: var(--danger); }
+        
+        .btn { padding: 10px 16px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; text-align: center; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+        .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+
+        .header-top { background: var(--primary); color: white; padding: 1.5rem 1rem 2rem 1rem; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; margin-bottom: -1.5rem; z-index: 10; position: relative; }
+        .header-top h2 { font-size: 1.2rem; margin-bottom: 4px; }
+        .header-top p { font-size: 0.85rem; opacity: 0.9; }
+
+        /* === BOTTOM NAV === */
+        #bottom-nav { position: absolute; bottom: 0; width: 100%; height: 70px; background: var(--nav-bg); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--nav-inactive); font-size: 0.7rem; cursor: pointer; gap: 4px; flex: 1; }
+        .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
+        .nav-item.active { color: var(--nav-active); font-weight: bold; }
+
+        /* === SPECIFIC SCREENS === */
+        /* Onboarding */
+        #screen-onboarding { background: var(--primary); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 200; position: absolute; top:0; left:0; width: 100%; height: 100%; }
+        .slide { display: none; padding: 2rem; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+        .slide.active { display: flex; animation: fadeIn 0.5s; }
+        .ob-icon { width: 120px; height: 120px; margin-bottom: 2rem; fill: white; }
+
+        /* Beranda */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .metric-box { text-align: center; }
+        .metric-val { font-size: 1.2rem; font-weight: bold; }
+        .metric-label { font-size: 0.75rem; color: var(--text-sec); }
+        .recommendation-card { background: var(--success-light); border: 1px solid var(--success); color: var(--text-main); }
+        
+        /* Progress Bar */
+        .progress-track { height: 12px; background: var(--surface); border-radius: 6px; overflow: hidden; margin: 10px 0; display: flex; }
+        .progress-fill { height: 100%; }
+
+        /* Catatan (Input Engine) */
+        .input-group { margin-bottom: 12px; }
+        .input-group label { display: block; font-size: 0.85rem; margin-bottom: 4px; color: var(--text-sec); }
+        .input-group input, .input-group select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-main); font-size: 1rem; }
+        .circle-gauge { width: 150px; height: 150px; border-radius: 50%; border: 10px solid var(--primary-light); border-top-color: var(--primary); display: flex; align-items: center; justify-content: center; flex-direction: column; margin: 0 auto; }
+        
+        /* Charts */
+        .bar-chart { display: flex; align-items: flex-end; height: 120px; gap: 8px; justify-content: space-between; margin-top: 1rem; padding-bottom: 20px; border-bottom: 1px solid var(--border); position: relative; }
+        .bar-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
+        .bar { width: 100%; background: var(--chart-bar); border-radius: 4px 4px 0 0; min-height: 5px; transition: height 0.5s ease; }
+        .bar-label { position: absolute; bottom: -20px; font-size: 0.7rem; color: var(--text-sec); }
+        .bar-val { position: absolute; top: -18px; font-size: 0.7rem; font-weight: bold; }
+
+        /* Notification */
+        .notif-item { display: flex; gap: 12px; align-items: flex-start; }
+        .notif-icon { width: 40px; height: 40px; border-radius: 20px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary); flex-shrink: 0; }
+        .notif-icon svg { width: 20px; height: 20px; fill: currentColor; }
+        
+        /* Modal & Overlay */
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: none; justify-content: center; align-items: center; padding: 20px; }
+        .modal-content { background: var(--card-bg); width: 100%; border-radius: 16px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: fadeIn 0.2s; }
+        
+        /* Demo Tour */
+        #demo-btn { position: absolute; bottom: 85px; right: 20px; background: var(--primary); color: white; border: none; border-radius: 24px; padding: 12px 20px; font-weight: bold; box-shadow: 0 4px 12px rgba(21, 101, 192, 0.4); z-index: 90; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .tour-overlay { position: absolute; border: 4px solid var(--warning); border-radius: 8px; z-index: 1001; pointer-events: none; transition: all 0.5s ease; box-shadow: 0 0 0 9999px rgba(0,0,0,0.6); display: none; }
+        .tour-tooltip { position: absolute; background: var(--card-bg); color: var(--text-main); padding: 12px; border-radius: 8px; z-index: 1002; width: 250px; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 1px solid var(--border); transition: all 0.5s ease; }
+        #tour-controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1003; background: var(--card-bg); padding: 8px 16px; border-radius: 20px; display: none; gap: 10px; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
+        /* Tab Switcher in Tren */
+        .tab-switcher { display: flex; background: var(--surface); border-radius: 8px; padding: 4px; margin-bottom: 1rem; }
+        .tab-btn { flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; color: var(--text-sec); cursor: pointer; }
+        .tab-btn.active { background: var(--card-bg); color: var(--primary); box-shadow: var(--shadow); }
+
+        /* Toggle Switch */
+        .switch { position: relative; display: inline-block; width: 40px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(16px); }
+
+        .svg-icon { width: 24px; height: 24px; fill: currentColor; }
+    </style>
+</head>
+<body>
+
+<div id="app-frame">
+    <!-- ONBOARDING -->
+    <div id="screen-onboarding" class="screen">
+        <div id="ob-slide-1" class="slide active">
+            <svg class="ob-icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+            <h2>CircadiaSync</h2>
+            <p style="margin-top: 10px; opacity: 0.8;">Sleep & Stress Ecosystem</p>
+            <button class="btn btn-primary mt-4" style="background: white; color: var(--primary);" onclick="nextSlide(2)">Lanjut</button>
+        </div>
+        <div id="ob-slide-2" class="slide">
+            <svg class="ob-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+            <h2>Cara Kerja SOMNIFILM</h2>
+            <ul style="text-align: left; margin: 20px 0; font-size: 0.9rem; line-height: 1.5; list-style: none;">
+                <li class="mb-2">👅 Tempel di lidah 15 mnt sblm tidur</li>
+                <li class="mb-2">🧪 CortiSense pantau kortisol</li>
+                <li class="mb-2">📱 App analisis waktu optimal</li>
+            </ul>
+            <button class="btn btn-primary" style="background: white; color: var(--primary);" onclick="nextSlide(3)">Lanjut</button>
+        </div>
+        <div id="ob-slide-3" class="slide">
+            <svg class="ob-icon" viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
+            <h2>Mulai Perjalanan Anda</h2>
+            <p style="margin-top: 10px; opacity: 0.8; margin-bottom: 20px;">Tidur lebih baik dimulai dari sini.</p>
+            <input type="text" id="ob-name" placeholder="Nama Anda" style="padding: 10px; border-radius: 8px; border: none; width: 80%; margin-bottom: 20px;">
+            <button class="btn btn-primary" style="background: white; color: var(--primary); width: 80%;" onclick="finishOnboarding()">Mulai Sekarang →</button>
+        </div>
+    </div>
+
+    <!-- BERANDA -->
+    <div id="screen-beranda" class="screen">
+        <div class="header-top">
+            <h2 id="home-date">Senin, 1 Jan 2026</h2>
+            <p>Status Tidur Malam Ini</p>
+        </div>
+        <div class="p-4" style="margin-top: -30px; position: relative; z-index: 11;">
+            
+            <div class="card" id="home-sleep-status">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-primary">Kualitas</h3>
+                    <span id="badge-se" class="badge badge-success">Baik</span>
+                </div>
+                <div class="grid-2">
+                    <div class="metric-box">
+                        <div id="val-tst" class="metric-val">0j 0m</div>
+                        <div class="metric-label">Total Tidur</div>
+                    </div>
+                    <div class="metric-box">
+                        <div id="val-se" class="metric-val">0%</div>
+                        <div class="metric-label">Efisiensi</div>
+                    </div>
+                    <div class="metric-box">
+                        <div id="val-sol" class="metric-val">0m</div>
+                        <div class="metric-label">Latensi</div>
+                    </div>
+                    <div class="metric-box">
+                        <div id="val-waso" class="metric-val">0x</div>
+                        <div class="metric-label">Terbangun</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="mb-2 mt-4 text-sm">Rekomendasi Hari Ini</h3>
+            <div class="card recommendation-card flex gap-2 items-center" id="home-rekomendasi" onclick="alert('SOMNIFILM diserap cepat sublingual, optimal jika ritme kortisol mulai turun.')">
+                <svg class="svg-icon" style="color: var(--success); flex-shrink: 0;" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm4.2 14.2L11 13V7h1.5v5.2l4.5 2.7-.8 1.3z"/></svg>
+                <div>
+                    <h4 style="font-size: 0.95rem;">Konsumsi Somnifilm</h4>
+                    <p class="text-xs" id="val-somni-time">Waktu optimal 20:30 - 21:00</p>
+                    <p class="text-xs mt-1" style="opacity:0.8;">Berdasarkan ritme sirkadian personal Anda.</p>
+                </div>
+            </div>
+
+            <h3 class="mb-2 mt-4 text-sm">Kortisol Saya Hari Ini</h3>
+            <div class="card" id="home-cortisol">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h4 class="text-primary">Kadar Kortisol</h4>
+                        <p class="text-xs text-sec" id="val-cort-time">Waktu optimal 20:30</p>
+                    </div>
+                    <span id="badge-cort" class="badge badge-warning">Sedang</span>
+                </div>
+                <div class="flex items-end gap-2 mt-2">
+                    <span id="val-cort" style="font-size: 2rem; font-weight: bold;">0.0</span>
+                    <span class="text-sm text-sec mb-2">nmol/L</span>
+                </div>
+                <div class="progress-track" id="bar-cortisol-track">
+                    <!-- Injected by JS -->
+                </div>
+                <div class="flex justify-between text-xs text-sec mt-1">
+                    <span>Rendah (0)</span>
+                    <span>Normal (15 nmol/L)</span>
+                </div>
+                
+                <div class="flex justify-between mt-4 gap-2">
+                    <button class="btn btn-outline btn-sm flex-1" onclick="navTo('tren')">Trend</button>
+                    <button class="btn btn-outline btn-sm flex-1" onclick="showModal('Laporan sedang disiapkan (PDF)...')">PDF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TREN -->
+    <div id="screen-tren" class="screen">
+        <div class="header-top flex justify-between items-center">
+            <div>
+                <h2>Tren Mingguan</h2>
+                <p>7 Hari Terakhir</p>
+            </div>
+            <svg class="svg-icon" style="cursor:pointer;" onclick="showModal('Mengunduh Laporan Mingguan...')" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </div>
+        <div class="p-4" style="margin-top: -20px; position: relative; z-index: 11;">
+            <div class="card p-2">
+                <div class="tab-switcher" id="tren-tabs">
+                    <div class="tab-btn active" onclick="switchTrend('tidur')">Tidur</div>
+                    <div class="tab-btn" onclick="switchTrend('kortisol')">Kortisol</div>
+                    <div class="tab-btn" onclick="switchTrend('stres')">Stres</div>
+                </div>
+
+                <div id="trend-content-tidur">
+                    <p class="text-sm font-bold">Efisiensi Tidur (7 Hari)</p>
+                    <div class="bar-chart" id="chart-se">
+                        <!-- JS injected -->
+                    </div>
+                    <div class="flex justify-between mt-2 mb-4 text-sm">
+                        <span class="text-sec">Rata-rata minggu ini</span>
+                        <span class="font-bold" id="trend-avg-se">0%</span>
+                    </div>
+                    <div class="grid-2 mt-2">
+                        <div class="card" style="margin:0; padding:10px; background:var(--surface);">
+                            <p class="text-xs text-sec">Total rata-rata</p>
+                            <p class="font-bold" id="trend-avg-tst">0j 0m</p>
+                        </div>
+                        <div class="card" style="margin:0; padding:10px; background:var(--surface);">
+                            <p class="text-xs text-sec">Latensi rata-rata</p>
+                            <p class="font-bold" id="trend-avg-sol">0m</p>
+                        </div>
+                    </div>
+                    <div class="card mt-4" style="background:var(--primary-light); border:none;">
+                        <h4 class="text-primary text-sm mb-1">Insight Mingguan</h4>
+                        <p class="text-xs" id="trend-insight">...</p>
+                    </div>
+                </div>
+                
+                <div id="trend-content-kortisol" style="display:none;">
+                    <p class="text-sm font-bold">Tren Kortisol Salivari</p>
+                    <svg viewBox="0 0 100 50" style="width:100%; height:150px; margin-top:10px;" id="chart-line-cort">
+                        <!-- JS injected -->
+                    </svg>
+                    <p class="text-xs text-center text-sec mt-2">Garis putus-putus = Batas Normal (4 nmol/L)</p>
+                </div>
+
+                <div id="trend-content-stres" style="display:none;">
+                    <p class="text-sm font-bold text-center mt-4 text-sec">Data skor stres sedang diakumulasi dari metrik kortisol dan latensi tidur...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CATATAN (Clinical Assessment & Cortisense) -->
+    <div id="screen-catatan" class="screen">
+        <div class="header-top">
+            <h2>Cortisense Strip</h2>
+            <p>Monitoring & Input Medis</p>
+        </div>
+        
+        <div class="p-4" style="margin-top: -30px; position: relative; z-index: 11;">
+            
+            <!-- Warning Banner (Dynamic) -->
+            <div id="alert-clinical" class="card" style="background: var(--danger-light); border-color: var(--danger); display:none;">
+                <div class="flex items-center gap-2">
+                    <svg class="svg-icon" style="color:var(--danger);" viewBox="0 0 24 24"><path d="M12 2L1 21h22M12 6l7.53 13H4.47M11 10v4h2v-4m-2 6v2h2v-2"/></svg>
+                    <p class="text-xs font-bold" style="color:var(--danger);" id="alert-clinical-text">Kortisol tinggi. Konsultasi disarankan.</p>
+                </div>
+                <button class="btn btn-sm btn-primary mt-2 w-100" style="width:100%;" onclick="navTo('konsultasi')">Temui Spesialis</button>
+            </div>
+
+            <!-- Live Monitor UI -->
+            <div class="card text-center" id="cortisense-gauge-box">
+                <div class="circle-gauge" id="live-gauge">
+                    <span id="live-cort-val" style="font-size:2.5rem; font-weight:bold;">0.0</span>
+                    <span class="text-sm text-sec">nmol/L</span>
+                </div>
+                <div class="mt-2">
+                    <span id="live-badge" class="badge badge-warning">Kortisol Sedang</span>
+                </div>
+                <p class="text-xs text-sec mt-2" id="live-update-text">Diperbarui baru saja • Strip Aktif</p>
+                
+                <div class="flex gap-2 justify-center mt-4">
+                    <div class="badge" style="background:var(--primary); color:white;">1J</div>
+                    <div class="badge" style="background:var(--surface); color:var(--text-sec);">6J</div>
+                    <div class="badge" style="background:var(--surface); color:var(--text-sec);">24J</div>
+                </div>
+            </div>
+
+            <!-- Form Input Pasien -->
+            <h3 class="mb-2 mt-4 text-sm">Panel Input Data Pasien (Simulasi)</h3>
+            <div class="card">
+                <p class="text-xs text-sec mb-4">Ubah nilai di bawah untuk mensimulasikan data yang ditangkap oleh ekosistem.</p>
+                
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label>Jam Tidur Mulai</label>
+                        <input type="time" id="in_jam_mulai" value="22:30">
+                    </div>
+                    <div class="input-group">
+                        <label>Jam Bangun</label>
+                        <input type="time" id="in_jam_selesai" value="06:00">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label>Latensi (SOL) - mnt</label>
+                        <input type="number" id="in_sol" value="15">
+                    </div>
+                    <div class="input-group">
+                        <label>Jml Terbangun</label>
+                        <input type="number" id="in_wake_count" value="1">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label>Durasi/Bangun - mnt</label>
+                        <input type="number" id="in_wake_dur" value="10">
+                    </div>
+                    <div class="input-group">
+                        <label>Kortisol Malam (Salivari)</label>
+                        <input type="number" step="0.1" id="in_cort" value="3.5">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Hari Kortisol Tinggi Berturut-turut</label>
+                    <select id="in_high_days">
+                        <option value="0">0 Hari (Normal)</option>
+                        <option value="1">1 Hari</option>
+                        <option value="2">2 Hari</option>
+                        <option value="3">3 Hari (Klinis)</option>
+                        <option value="4">> 3 Hari</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary w-100 mt-2" style="width:100%;" onclick="processInputAndSave()">Simpan & Analisis Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFIKASI -->
+    <div id="screen-notif" class="screen">
+        <div class="header-top flex justify-between items-center">
+            <h2>Notifikasi</h2>
+            <span class="badge" style="background:white; color:var(--primary);" id="notif-badge">0 Baru</span>
+        </div>
+        <div class="p-4" style="margin-top: -20px; position: relative; z-index: 11;" id="notif-list">
+            <!-- Injected dynamically -->
+        </div>
+    </div>
+
+    <!-- PROFIL -->
+    <div id="screen-profil" class="screen">
+        <div class="header-top text-center" style="padding-bottom: 3rem;">
+            <div style="width:80px; height:80px; background:white; border-radius:40px; margin:0 auto; display:flex; align-items:center; justify-content:center; color:var(--primary); font-size:2rem; font-weight:bold;" id="prof-initial">RP</div>
+            <h2 class="mt-2" id="prof-name">Nama Pasien</h2>
+            <span class="badge badge-success mt-1">Pengguna Premium</span>
+        </div>
+        <div class="p-4" style="margin-top: -40px; position: relative; z-index: 11;">
+            <div class="card grid-2 text-center">
+                <div>
+                    <p class="font-bold" style="font-size:1.2rem;">24</p>
+                    <p class="text-xs text-sec">Malam Dipantau</p>
+                </div>
+                <div>
+                    <p class="font-bold text-primary" style="font-size:1.2rem;" id="prof-streak">0</p>
+                    <p class="text-xs text-sec">Streak Konsumsi</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="text-sm mb-4">Pengaturan Ekosistem</h3>
+                
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm">Tema Gelap (Dark Mode)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="theme-toggle" onchange="toggleTheme(this)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm">Target Tidur (Jam)</span>
+                    <span class="text-sm font-bold text-primary" id="val-target-sleep">7 Jam</span>
+                </div>
+                <input type="range" min="5" max="9" step="0.5" value="7" style="width:100%; margin-bottom: 20px;" oninput="document.getElementById('val-target-sleep').innerText = this.value + ' Jam'">
+
+                <button class="btn btn-outline w-100 mb-2" style="width:100%;" onclick="alert('Membuka Bantuan...')">Hubungi Dukungan</button>
+                <button class="btn w-100" style="width:100%; background:var(--danger-light); color:var(--danger);" onclick="resetData()">Hapus Data & Keluar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KONSULTASI DOKTER -->
+    <div id="screen-konsultasi" class="screen">
+        <div class="header-top">
+            <h2>Konsultasi Dokter</h2>
+            <p>Berdasarkan Data Sirkadian Anda</p>
+        </div>
+        <div class="p-4" style="margin-top: -20px; position: relative; z-index: 11;">
+            
+            <div class="card" style="background:var(--warning-light); border-color:var(--warning);">
+                <div class="flex gap-2">
+                    <svg class="svg-icon" style="color:var(--warning);" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+                    <div>
+                        <p class="text-sm font-bold" style="color:#B71C1C;">Peringatan Klinis</p>
+                        <p class="text-xs" style="color:#B71C1C;">Kortisol/Tidur Anda di luar batas normal selama bbrp hari. Disarankan telekonsultasi.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="mb-2 text-sm">Dokter Rekomendasi</h3>
+            
+            <div class="card flex justify-between items-center" onclick="confirmDoctor('dr. Resti Wahyuni, Sp.KJ')">
+                <div class="flex gap-4 items-center">
+                    <div style="width:50px; height:50px; background:var(--primary); color:white; border-radius:25px; display:flex; align-items:center; justify-content:center; font-weight:bold;">RW</div>
+                    <div>
+                        <p class="font-bold text-sm">dr. Resti Wahyuni, Sp.KJ</p>
+                        <p class="text-xs text-sec">Psikiater • Spesialis Tidur</p>
+                        <p class="text-xs text-warning">★★★★★ (412)</p>
+                    </div>
+                </div>
+                <span class="badge badge-success">Online</span>
+            </div>
+
+            <div class="card flex justify-between items-center" onclick="confirmDoctor('dr. Aldo Firmansyah, Sp.S')">
+                <div class="flex gap-4 items-center">
+                    <div style="width:50px; height:50px; background:var(--primary); color:white; border-radius:25px; display:flex; align-items:center; justify-content:center; font-weight:bold;">AF</div>
+                    <div>
+                        <p class="font-bold text-sm">dr. Aldo Firmansyah, Sp.S</p>
+                        <p class="text-xs text-sec">Neurolog • Ggn Tidur</p>
+                        <p class="text-xs text-warning">★★★★★ (287)</p>
+                    </div>
+                </div>
+                <span class="badge badge-success">Online</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <nav id="bottom-nav">
+        <div class="nav-item active" onclick="navTo('beranda')" id="nav-beranda">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            Beranda
+        </div>
+        <div class="nav-item" onclick="navTo('tren')" id="nav-tren">
+            <svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+            Tren
+        </div>
+        <div class="nav-item" onclick="navTo('catatan')" id="nav-catatan">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            Catatan
+        </div>
+        <div class="nav-item" onclick="navTo('notif')" id="nav-notif">
+            <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+            Notifikasi
+        </div>
+        <div class="nav-item" onclick="navTo('profil')" id="nav-profil">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            Profil
+        </div>
+    </nav>
+
+    <!-- FAB for Demo Mode -->
+    <button id="demo-btn" onclick="startDemoTour()">
+        <svg class="svg-icon" style="width:16px;height:16px;" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        Tour
+    </button>
+
+    <!-- Modals & Overlays -->
+    <div id="global-modal" class="modal-overlay">
+        <div class="modal-content text-center">
+            <h3 id="modal-title" class="mb-2">Info</h3>
+            <p id="modal-text" class="text-sm text-sec mb-4">Message</p>
+            <button class="btn btn-primary w-100" style="width:100%;" onclick="closeModal()">Tutup</button>
+        </div>
+    </div>
+    
+    <div id="doctor-modal" class="modal-overlay">
+        <div class="modal-content text-center">
+            <h3 id="doc-title" class="mb-2">Kirim Data</h3>
+            <p class="text-sm text-sec mb-4">Data berikut akan dikirim ke dokter:<br><br>
+               • Grafik tren kortisol 30 hari<br>
+               • Laporan kualitas tidur mingguan<br>
+               • Riwayat konsumsi SOMNIFILM<br>
+               • Parameter SOL, WASO, SE
+            </p>
+            <button class="btn btn-primary w-100 mb-2" style="width:100%;" onclick="sendDataToDoc()">Kirim Data & Mulai Konsultasi</button>
+            <button class="btn btn-outline w-100" style="width:100%;" onclick="document.getElementById('doctor-modal').style.display='none'">Batal</button>
+        </div>
+    </div>
+
+    <!-- Tour Overlays -->
+    <div class="tour-overlay" id="tour-box"></div>
+    <div class="tour-tooltip" id="tour-tooltip">Tooltip</div>
+    <div id="tour-controls">
+        <span class="text-xs font-bold" id="tour-step">1/5</span>
+        <button class="btn btn-sm btn-outline" onclick="stopTour()">Skip</button>
+    </div>
+</div>
+
+<!-- ================= JAVASCRIPT ================= -->
+<script>
+    // --- 1. PATIENT DATA ENGINE & CLINICAL ALGORITHMS (STANDAR PDF) ---
+    
+    const STATE_KEY = 'circadiasync_patient';
+    const THEME_KEY = 'circadiasync_theme';
+    
+    let appState = null;
+    let liveCortisolInterval = null;
+
+    // Default Mock History (7 Days)
+    const defaultHistory = [
+        { day: 'Sen', se: 72, cort: 14.2 },
+        { day: 'Sel', se: 70, cort: 15.1 },
+        { day: 'Rab', se: 78, cort: 13.5 },
+        { day: 'Kam', se: 74, cort: 14.8 },
+        { day: 'Jum', se: 71, cort: 16.0 },
+        { day: 'Sab', se: 82, cort: 11.2 },
+        { day: 'Min', se: 80, cort: 10.5 },
+    ];
+
+    function calculateTIB(start, end) {
+        let [sH, sM] = start.split(':').map(Number);
+        let [eH, eM] = end.split(':').map(Number);
+        let sMins = sH * 60 + sM;
+        let eMins = eH * 60 + eM;
+        if (eMins < sMins) eMins += 24 * 60; // crossed midnight
+        return eMins - sMins;
+    }
+
+    function formatTimeStr(mins) {
+        let h = Math.floor(mins / 60);
+        let m = mins % 60;
+        return `${h}j ${m}m`;
+    }
+
+    function assessSleep(input) {
+        // Calculate Times
+        let tib = calculateTIB(input.jam_tidur_mulai, input.jam_tidur_selesai);
+        let waso = input.wake_count * input.wake_duration_menit;
+        let tst = tib - input.sol_menit - waso;
+        if (tst < 0) tst = 0;
+        let se = (tst / tib) * 100;
+        
+        // Clinical Grading (Based on PDF standard)
+        let seStatus = se >= 85 ? { label: 'Baik', color: 'success' } : 
+                       se >= 75 ? { label: 'Sedang', color: 'warning' } : 
+                       { label: 'Buruk', color: 'danger' };
+        
+        let tstStatus = tst >= 420 ? 'Normal' : tst >= 360 ? 'Kurang' : 'Deprivasi';
+        
+        // Cortisol Grading (Malam Salivari)
+        let cortVal = input.kortisol_salivari_malam;
+        let cortStatus = cortVal <= 4 ? { label: 'Normal', color: 'success' } : 
+                         cortVal <= 15 ? { label: 'Sedang', color: 'warning' } : 
+                         { label: 'Bahaya', color: 'danger' };
+                         
+        // Somnifilm recommendation (-60 to 90 mins from sleep onset)
+        let [sH, sM] = input.jam_tidur_mulai.split(':').map(Number);
+        let recMinsStart = (sH * 60 + sM) - 90;
+        let recMinsEnd = (sH * 60 + sM) - 30;
+        if (recMinsStart < 0) recMinsStart += 24*60;
+        if (recMinsEnd < 0) recMinsEnd += 24*60;
+        
+        let rHs = Math.floor(recMinsStart/60)%24; let rMs = recMinsStart%60;
+        let rHe = Math.floor(recMinsEnd/60)%24; let rMe = recMinsEnd%60;
+        let recStr = `${rHs.toString().padStart(2,'0')}:${rMs.toString().padStart(2,'0')} - ${rHe.toString().padStart(2,'0')}:${rMe.toString().padStart(2,'0')}`;
+
+        // Generate Notifications dynamically
+        let notifs = [];
+        // 1. Somnifilm reminder
+        notifs.push({ icon: 'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z', title: 'Waktu konsumsi SOMNIFILM', desc: `Berdasarkan ritme Anda, waktu optimal adalah ${rHs.toString().padStart(2,'0')}:${rMs.toString().padStart(2,'0')}`, time: 'Hari ini', color: 'success' });
+        
+        // 2. Clinical Alert if high cortisol > 3 days
+        if (input.hari_kortisol_tinggi_berturut >= 3) {
+            notifs.push({ icon: 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z', title: 'Kortisol di atas Normal', desc: 'Tinggi selama 3 hari. Disarankan Konsultasi dengan dokter.', time: 'Penting', color: 'danger', action: 'konsultasi' });
+        }
+        
+        // 3. Low SE Alert
+        if (se < 65) {
+            notifs.push({ icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z', title: 'Efisiensi Tidur Klinis', desc: `SE Anda ${se.toFixed(0)}% (<65%). Pertimbangkan penyesuaian rutinitas.`, time: 'Sistem', color: 'warning' });
+        }
+
+        return {
+            profile: { nama: input.nama || "Rizky Pratama", streak: input.streak_konsumsi_somnifilm },
+            sleep: { tst_mins: tst, tst_str: formatTimeStr(tst), se: Math.round(se), sol: input.sol_menit, waso_count: input.wake_count, status: seStatus },
+            cortisol: { val: cortVal, status: cortStatus, high_days: input.hari_kortisol_tinggi_berturut },
+            somnifilm: { rec_time: recStr },
+            notifications: notifs,
+            history: defaultHistory // using mock for demo
+        };
+    }
+
+    function updatePatientState(result) {
+        appState = result;
+        localStorage.setItem(STATE_KEY, JSON.stringify(appState));
+        renderApp();
+    }
+
+    // --- 2. UI RENDERING & NAVIGATION ---
+
+    function initApp() {
+        // Theme
+        let savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        document.getElementById('theme-toggle').checked = (savedTheme === 'dark');
+
+        // Data
+        let savedData = localStorage.getItem(STATE_KEY);
+        if (savedData) {
+            appState = JSON.parse(savedData);
+            document.getElementById('screen-onboarding').style.display = 'none';
+            document.getElementById('bottom-nav').style.display = 'flex';
+            renderApp();
+            navTo('beranda');
+        } else {
+            document.getElementById('screen-onboarding').style.display = 'flex';
+            document.getElementById('bottom-nav').style.display = 'none';
+        }
+
+        // Set Date
+        const options = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
+        document.getElementById('home-date').innerText = new Date().toLocaleDateString('id-ID', options);
+    }
+
+    function renderApp() {
+        if (!appState) return;
+
+        // --- BERANDA ---
+        document.getElementById('badge-se').className = `badge badge-${appState.sleep.status.color}`;
+        document.getElementById('badge-se').innerText = appState.sleep.status.label;
+        document.getElementById('val-tst').innerText = appState.sleep.tst_str;
+        document.getElementById('val-se').innerText = appState.sleep.se + '%';
+        document.getElementById('val-sol').innerText = appState.sleep.sol + 'm';
+        document.getElementById('val-waso').innerText = appState.sleep.waso_count + 'x';
+        
+        document.getElementById('val-somni-time').innerText = `Waktu optimal ${appState.somnifilm.rec_time}`;
+        
+        document.getElementById('val-cort').innerText = appState.cortisol.val.toFixed(1);
+        document.getElementById('badge-cort').className = `badge badge-${appState.cortisol.status.color}`;
+        document.getElementById('badge-cort').innerText = appState.cortisol.status.label;
+        
+        // Progress bar cort (Max let's say 25 for visual)
+        let pct = (appState.cortisol.val / 25) * 100;
+        let pColor = appState.cortisol.status.color === 'success' ? 'var(--success)' : 
+                     appState.cortisol.status.color === 'warning' ? 'var(--warning)' : 'var(--danger)';
+        document.getElementById('bar-cortisol-track').innerHTML = `<div class="progress-fill" style="width: ${Math.min(pct, 100)}%; background: ${pColor};"></div>`;
+
+        // --- TREN ---
+        renderCharts();
+
+        // --- CATATAN (Sync input fields with state) ---
+        // Just populate the form with some reverse-engineered data if needed, or leave it.
+        if(appState.cortisol.high_days >= 3 || appState.sleep.se < 65) {
+            document.getElementById('alert-clinical').style.display = 'block';
+        } else {
+            document.getElementById('alert-clinical').style.display = 'none';
+        }
+        
+        // Live Gauge Update (Cortisense sim)
+        document.getElementById('live-cort-val').innerText = appState.cortisol.val.toFixed(1);
+        document.getElementById('live-badge').className = `badge badge-${appState.cortisol.status.color}`;
+        document.getElementById('live-badge').innerText = `Kortisol ${appState.cortisol.status.label}`;
+        startLiveCortisolSim();
+
+        // --- NOTIFIKASI ---
+        let notifHTML = '';
+        appState.notifications.forEach(n => {
+            let actBtn = n.action ? `<button class="btn btn-sm mt-2" style="background:var(--${n.color}-light); color:var(--${n.color}); width:100%" onclick="navTo('${n.action}')">Lihat Detail</button>` : '';
+            notifHTML += `
+                <div class="card notif-item">
+                    <div class="notif-icon" style="background:var(--${n.color}-light); color:var(--${n.color});"><svg viewBox="0 0 24 24"><path d="${n.icon}"/></svg></div>
+                    <div style="flex:1;">
+                        <div class="flex justify-between">
+                            <h4 class="text-sm font-bold">${n.title}</h4>
+                            <span class="text-xs text-sec">${n.time}</span>
+                        </div>
+                        <p class="text-xs mt-1" style="opacity:0.8;">${n.desc}</p>
+                        ${actBtn}
+                    </div>
+                </div>`;
+        });
+        document.getElementById('notif-list').innerHTML = notifHTML;
+        document.getElementById('notif-badge').innerText = `${appState.notifications.length} Baru`;
+
+        // --- PROFIL ---
+        document.getElementById('prof-name').innerText = appState.profile.nama;
+        document.getElementById('prof-streak').innerText = appState.profile.streak;
+    }
+
+    function renderCharts() {
+        if(!appState) return;
+        const hist = appState.history;
+        
+        // Bar Chart (SE)
+        let barHTML = '';
+        let sumSE = 0;
+        hist.forEach(d => {
+            sumSE += d.se;
+            let hPct = d.se; 
+            let color = hPct >= 85 ? 'var(--success)' : hPct >= 75 ? 'var(--chart-bar)' : 'var(--danger)';
+            barHTML += `
+                <div class="bar-col">
+                    <span class="bar-val">${d.se}</span>
+                    <div class="bar" style="height: ${hPct}%; background:${color};"></div>
+                    <span class="bar-label">${d.day}</span>
+                </div>`;
+        });
+        document.getElementById('chart-se').innerHTML = barHTML;
+        document.getElementById('trend-avg-se').innerText = Math.round(sumSE/7) + '%';
+        document.getElementById('trend-avg-tst').innerText = appState.sleep.tst_str;
+        document.getElementById('trend-avg-sol').innerText = appState.sleep.sol + 'm';
+        
+        let insight = `Kualitas rata-rata Anda ${Math.round(sumSE/7)}%. Latensi ${appState.sleep.sol}m. Konsumsi rutin SOMNIFILM terbukti menstabilkan parameter ini.`;
+        document.getElementById('trend-insight').innerText = insight;
+
+        // Line Chart (Cortisol)
+        // Map values to SVG coordinates (Y: 50 is 0 nmol, 0 is 20 nmol). X: 0 to 100
+        let pts = [];
+        hist.forEach((d, i) => {
+            let x = (i / 6) * 100;
+            let y = 50 - (d.cort / 20) * 50; 
+            pts.push(`${x},${y}`);
+        });
+        // Normal line at 4 nmol (Y = 50 - (4/20)*50 = 40)
+        let svg = `
+            <line x1="0" y1="40" x2="100" y2="40" stroke="var(--success)" stroke-dasharray="4" stroke-width="1"/>
+            <polyline points="${pts.join(' ')}" fill="none" stroke="var(--primary)" stroke-width="2"/>
+        `;
+        hist.forEach((d, i) => {
+            let x = (i / 6) * 100;
+            let y = 50 - (d.cort / 20) * 50; 
+            svg += `<circle cx="${x}" cy="${y}" r="3" fill="var(--card-bg)" stroke="var(--primary)" stroke-width="2"/>`;
+        });
+        document.getElementById('chart-line-cort').innerHTML = svg;
+    }
+
+    // --- INTERACTION LOGIC ---
+
+    function navTo(screenId) {
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
+        const target = document.getElementById('screen-' + screenId);
+        if(target) target.classList.add('active');
+        
+        const navItem = document.getElementById('nav-' + screenId);
+        if(navItem) navItem.classList.add('active');
+        
+        // Reset scroll
+        if(target) target.scrollTop = 0;
+    }
+
+    function switchTrend(tab) {
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById('trend-content-tidur').style.display = 'none';
+        document.getElementById('trend-content-kortisol').style.display = 'none';
+        document.getElementById('trend-content-stres').style.display = 'none';
+        document.getElementById('trend-content-' + tab).style.display = 'block';
+    }
+
+    function processInputAndSave() {
+        let input = {
+            nama: "Rizky Pratama", // static for demo
+            jam_tidur_mulai: document.getElementById('in_jam_mulai').value,
+            jam_tidur_selesai: document.getElementById('in_jam_selesai').value,
+            sol_menit: parseInt(document.getElementById('in_sol').value),
+            wake_count: parseInt(document.getElementById('in_wake_count').value),
+            wake_duration_menit: parseInt(document.getElementById('in_wake_dur').value),
+            kortisol_salivari_malam: parseFloat(document.getElementById('in_cort').value),
+            hari_kortisol_tinggi_berturut: parseInt(document.getElementById('in_high_days').value),
+            streak_konsumsi_somnifilm: 6
+        };
+        
+        let result = assessSleep(input);
+        updatePatientState(result);
+        
+        showModal("Data medis berhasil dianalisis dan disimpan. Semua layar telah diperbarui.");
+    }
+
+    function startLiveCortisolSim() {
+        if(liveCortisolInterval) clearInterval(liveCortisolInterval);
+        let baseVal = appState ? appState.cortisol.val : 14.2;
+        liveCortisolInterval = setInterval(() => {
+            let fluctuate = (Math.random() * 0.4 - 0.2); // -0.2 to +0.2
+            let newVal = (baseVal + fluctuate).toFixed(1);
+            let el = document.getElementById('live-cort-val');
+            if(el) el.innerText = newVal;
+        }, 3000);
+    }
+
+    // --- ONBOARDING & UTIL ---
+    function nextSlide(n) {
+        document.querySelectorAll('.slide').forEach(el => el.classList.remove('active'));
+        document.getElementById('ob-slide-' + n).classList.add('active');
+    }
+    
+    function finishOnboarding() {
+        let name = document.getElementById('ob-name').value || "Pengguna";
+        // Setup initial dummy data
+        let initialData = assessSleep({
+            nama: name, jam_tidur_mulai: '23:00', jam_tidur_selesai: '06:00',
+            sol_menit: 20, wake_count: 1, wake_duration_menit: 10,
+            kortisol_salivari_malam: 3.5, hari_kortisol_tinggi_berturut: 0, streak_konsumsi_somnifilm: 2
+        });
+        updatePatientState(initialData);
+        
+        document.getElementById('screen-onboarding').style.display = 'none';
+        document.getElementById('bottom-nav').style.display = 'flex';
+        navTo('beranda');
+    }
+
+    function toggleTheme(cb) {
+        let theme = cb.checked ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem(THEME_KEY, theme);
+    }
+
+    function resetData() {
+        if(confirm("Yakin ingin mereset semua data?")) {
+            localStorage.removeItem(STATE_KEY);
+            location.reload();
+        }
+    }
+
+    function showModal(text) {
+        document.getElementById('modal-text').innerText = text;
+        document.getElementById('global-modal').style.display = 'flex';
+    }
+    function closeModal() {
+        document.getElementById('global-modal').style.display = 'none';
+    }
+    
+    function confirmDoctor(name) {
+        document.getElementById('doc-title').innerText = "Konsultasi dgn " + name;
+        document.getElementById('doctor-modal').style.display = 'flex';
+    }
+    function sendDataToDoc() {
+        document.getElementById('doctor-modal').style.display = 'none';
+        showModal("Data medis berhasil dienkripsi & dikirim. Dokter akan merespons dalam 2x24 jam.");
+    }
+
+    // --- 3. DEMO TOUR MODE ---
+    let tourActive = false;
+    let tourStep = 0;
+    
+    const tourSequence = [
+        { screen: 'beranda', targetId: 'home-sleep-status', text: 'Status kualitas tidur dihitung otomatis dari Engine AI.' },
+        { screen: 'beranda', targetId: 'home-rekomendasi', text: 'Rekomendasi jam Somnifilm personal berdasarkan ritme sirkadian.' },
+        { screen: 'tren', targetId: 'tren-tabs', text: 'Analisis mingguan untuk memantau kemajuan terapi.' },
+        { screen: 'catatan', targetId: 'cortisense-gauge-box', text: 'Data dari Cortisense diupdate secara real-time.' },
+        { screen: 'konsultasi', targetId: 'screen-konsultasi', text: 'Eskalasi ke spesialis langsung dengan data medis lengkap.' }
+    ];
+
+    async function startDemoTour() {
+        if(tourActive) return;
+        tourActive = true;
+        document.getElementById('tour-controls').style.display = 'flex';
+        document.getElementById('tour-box').style.display = 'block';
+        document.getElementById('tour-tooltip').style.display = 'block';
+        
+        for (let i = 0; i < tourSequence.length; i++) {
+            if(!tourActive) break;
+            tourStep = i;
+            document.getElementById('tour-step').innerText = `${i+1}/${tourSequence.length}`;
+            
+            let step = tourSequence[i];
+            navTo(step.screen);
+            
+            await new Promise(r => setTimeout(r, 600)); // wait for nav transition
+            highlightElement(step.targetId, step.text);
+            await new Promise(r => setTimeout(r, 3500)); // show for 3.5s
+        }
+        
+        stopTour();
+        if(tourActive) showModal("Terima kasih telah menjelajahi CircadiaSync — Ekosistem Tidur & Stres Berbasis Sains.");
+    }
+
+    function highlightElement(id, text) {
+        const el = document.getElementById(id);
+        const box = document.getElementById('tour-box');
+        const tooltip = document.getElementById('tour-tooltip');
+        
+        if(!el) return;
+        const rect = el.getBoundingClientRect();
+        
+        // Offset for the app-frame if needed (since it's max-width 390)
+        const frameRect = document.getElementById('app-frame').getBoundingClientRect();
+        
+        let top = rect.top - frameRect.top;
+        let left = rect.left - frameRect.left;
+
+        box.style.top = (top - 4) + 'px';
+        box.style.left = (left - 4) + 'px';
+        box.style.width = (rect.width + 8) + 'px';
+        box.style.height = (rect.height + 8) + 'px';
+        
+        tooltip.innerText = text;
+        tooltip.style.top = (top + rect.height + 12) + 'px';
+        tooltip.style.left = '50%';
+        tooltip.style.transform = 'translateX(-50%)';
+    }
+
+    function stopTour() {
+        tourActive = false;
+        document.getElementById('tour-controls').style.display = 'none';
+        document.getElementById('tour-box').style.display = 'none';
+        document.getElementById('tour-tooltip').style.display = 'none';
+    }
+
+    // Run Init
+    window.onload = initApp;
+
+</script>
+</body>
+</html>
